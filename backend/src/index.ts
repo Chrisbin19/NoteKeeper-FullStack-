@@ -66,7 +66,7 @@ app.put("/api/notes/:id", async (req, res) => {
   } catch (error) {
     res.status(500).send("Oops, something went wrong");
   }
-});
+}); 
 app.listen(5000,()=>{
     console.log("Server is running :https://localhost:5000  ");
 });
