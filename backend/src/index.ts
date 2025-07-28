@@ -6,10 +6,8 @@ const app=express();
 const prisma = new PrismaClient();
 app.use(cors());
 app.use(express.json());   
+
 app.get("/api/notes",async(req,res)=>{
-    res.json({message:"success"});
-});
-app.get("/notes",async(req,res)=>{
     const notes = await prisma.note.findMany();
     res.json(notes);
 });
