@@ -1,126 +1,147 @@
 import './App.css';
-import React,{useState,useEffect}from 'react';
+import React, { useState, useEffect } from 'react';
 
-function App(){
-  type Note={
-    id:number,
-    title:string,
-    content:string,
+type Note = {
+  id: number;
+  title: string;
+  content: string;
+};
+
+function App() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+
+  // Function to fetch notes from backend and update state
+  const fetchNotes = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/notes");
+      const notesData: Note[] = await response.json();
+      setNotes(notesData);
+    } catch (e) {
+      console.error("Error fetching notes:", e);
+    }
   };
-  
-  const[notes,setNotes]=useState<Note[]>([]);
-  
-  const [title,setTitle]=useState("");
-  const [content,setContent]=useState("");
-  const [selectedNote,setSelectedNode]=useState<Note | null >(null);
-  
- useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        const response = await fetch(
-          "http://localhost:5000/api/notes"
-        );
 
-        const notes: Note[] =
-          await response.json();
-
-        setNotes(notes);
-      } catch (e) {
-        console.log(e);
-      }
-    };
-
+  // Fetch notes on component mount
+  useEffect(() => {
     fetchNotes();
   }, []);
 
-  const handleAddNote=(e:React.FormEvent)=>{
-    e.preventDefault();
-    setNotes([newNote,...notes]);
-    setTitle("");
-    setContent(""); // Add the new note to the beginning of the notes array
-  }
-  const newNote:Note={
-    id:notes.length+1,
-    title: title,
-    content: content,
-  }
-  
-  const handleNoteClick=(note:Note)=>{
-    setSelectedNode(note);
+  // Add a new note and then refetch notes
+  const handleAddNote = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      await fetch("http://localhost:5000/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      setTitle("");
+      setContent("");
+      fetchNotes();  // Refetch notes after add
+    } catch (e) {
+      console.error("Error adding note:", e);
+    }
+  };
+
+  // Select a note to edit
+  const handleNoteClick = (note: Note) => {
+    setSelectedNote(note);
     setTitle(note.title);
     setContent(note.content);
-  }
-  const handleUpdateNote=(event:React.FormEvent)=>{
+  };
+
+  // Update the selected note and refetch
+  const handleUpdateNote = async (event: React.FormEvent) => {
     event.preventDefault();
-    if(!selectedNote){
-      return;
+    if (!selectedNote) return;
+    try {
+      await fetch(`http://localhost:5000/api/notes/${selectedNote.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, content }),
+      });
+      setSelectedNote(null);
+      setTitle("");
+      setContent("");
+      fetchNotes();  // Refetch notes after update
+    } catch (e) {
+      console.error("Error updating note:", e);
     }
-    const updatedNote: Note={
-      id: selectedNote.id,
-      title: title,
-      content: content,
-    };
-    const updatedNotes = notes.map((note) =>
-      note.id === selectedNote.id ? updatedNote : note
-    );
-    setNotes(updatedNotes);
-    setSelectedNode(null);
-    setTitle("");
-    setContent(""); 
-  }
-  const handleCancel=()=>{
-    setSelectedNode(null);
+  };
+
+  // Cancel editing
+  const handleCancel = () => {
+    setSelectedNote(null);
     setTitle("");
     setContent("");
-  }
-  const deleteNote=(event:React.MouseEvent,noteId:number)=>{
-    event.stopPropagation(); // Prevent the click from triggering the note selection
-    const updatedNotes = notes.filter((note) => note.id !== noteId);
-    setNotes(updatedNotes);
   };
-  return(
-  <div className='app-container'>
-    <form onSubmit={
-      (event)=>(
-        selectedNote ? handleUpdateNote(event) : handleAddNote(event))
-    } className='note-form'>
-      <input 
-        value={title}
-        onChange={(e)=>setTitle(e.target.value)}
-      placeholder='Title' required/>
-      <textarea 
-        rows={10}
-        value={content}
-        onChange={(e)=>setContent(e.target.value) }
-      placeholder='Content' required/>
-      {
-        selectedNote ? (
-          <div className="edit-buttons">
-            <button type='submit'>Save</button>
-            <button onClick={handleCancel}>Cancel</button>
-          </div>
-        ):(
-             <button type='submit'>Add Note</button>
-        )
-      }
-     
-    </form>
-    <div className='notes-grid'>
-      {notes.map((note)=>(
-           <div key={note.id} className='notes-item' onClick={()=>handleNoteClick(note)}>
-        <div className='notes-header'>
-          <button onClick={(event)=>deleteNote(event,note.id)}>
-            X
-          </button>
-          </div>
-          <h2>{note.title}</h2>
-          <p>{note.content}</p>
 
-      </div>
+  // Delete a note and then refetch notes
+  const deleteNote = async (event: React.MouseEvent, noteId: number) => {
+    event.stopPropagation();
+    try {
+      await fetch(`http://localhost:5000/api/notes/${noteId}`, {
+        method: "DELETE",
+      });
+      fetchNotes();  // Refetch notes after delete
+    } catch (e) {
+      console.error("Error deleting note:", e);
+    }
+  };
+
+  return (
+    <div className="app-container">
+      <form
+        onSubmit={(event) =>
+          selectedNote ? handleUpdateNote(event) : handleAddNote(event)
+        }
+        className="note-form"
+      >
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Title"
+          required
+        />
+        <textarea
+          rows={10}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="Content"
+          required
+        />
+        {selectedNote ? (
+          <div className="edit-buttons">
+            <button type="submit">Save</button>
+            <button type="button" onClick={handleCancel}>
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button type="submit">Add Note</button>
+        )}
+      </form>
+
+      <div className="notes-grid">
+        {notes.map((note) => (
+          <div
+            key={note.id}
+            className="notes-item"
+            onClick={() => handleNoteClick(note)}
+          >
+            <div className="notes-header">
+              <button onClick={(event) => deleteNote(event, note.id)}>X</button>
+            </div>
+            <h2>{note.title}</h2>
+            <p>{note.content}</p>
+          </div>
         ))}
+      </div>
     </div>
-   
-  </div>
-  )
+  );
 }
+
 export default App;
